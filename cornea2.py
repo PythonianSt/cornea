@@ -70,10 +70,19 @@ discharge = st.checkbox("มีขี้ตา")
 # ========================
 NYCKEL_CLIENT_ID = st.secrets.get("NYCKEL_CLIENT_ID", "")
 NYCKEL_CLIENT_SECRET = st.secrets.get("NYCKEL_CLIENT_SECRET", "")
+# Optional: ใช้เฉพาะกรณีที่อาจารย์มี access token แบบชั่วคราวอยู่แล้ว
+# โดยทั่วไปไม่จำเป็น เพราะระบบจะขอ token อัตโนมัติจาก CLIENT_ID/CLIENT_SECRET
+NYCKEL_ACCESS_TOKEN = st.secrets.get("NYCKEL_ACCESS_TOKEN", "")
 
 
 def get_nyckel_token():
-    """ขอ access token ใหม่ด้วย OAuth2 Client Credentials Flow"""
+    """ขอ access token อัตโนมัติด้วย OAuth2 Client Credentials Flow"""
+    if NYCKEL_ACCESS_TOKEN:
+        return NYCKEL_ACCESS_TOKEN
+
+    if not NYCKEL_CLIENT_ID or not NYCKEL_CLIENT_SECRET:
+        return None
+
     try:
         response = requests.post(
             "https://www.nyckel.com/connect/token",
@@ -85,6 +94,8 @@ def get_nyckel_token():
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             timeout=10,
         )
+        if response.status_code != 200:
+            return None
         token_data = response.json()
         return token_data.get("access_token")
     except Exception:
@@ -95,7 +106,13 @@ def analyze_image_nyckel(image_obj):
     """ส่งภาพ 1 ภาพไปยัง Nyckel"""
     token = get_nyckel_token()
     if not token:
-        return {"error": "ไม่สามารถขอ access token จาก Nyckel ได้"}
+        return {
+            "error": (
+                "ไม่สามารถขอ access token จาก Nyckel ได้ — "
+                "กรุณาตรวจ Streamlit Secrets ว่ามี NYCKEL_CLIENT_ID และ "
+                "NYCKEL_CLIENT_SECRET ถูกต้อง หรือใส่ NYCKEL_ACCESS_TOKEN ชั่วคราว"
+            )
+        }
 
     buffered = io.BytesIO()
     image_obj.save(buffered, format="JPEG")
@@ -329,6 +346,4 @@ if uploaded_file:
         st.warning("⚠️ ใช้เพื่อคัดกรองเท่านั้น ไม่ใช่วินิจฉัย")
 else:
     st.info("กรุณาเลือกและอัปโหลดภาพนิ่งหรือวิดีโอก่อนเริ่มวิเคราะห์")
-    st.write("### 🧠 สรุปโดย AI")
-    st.write(summary)
-    st.warning("⚠️ ใช้เพื่อคัดกรองเท่านั้น ไม่ใช่วินิจฉัย")
+
