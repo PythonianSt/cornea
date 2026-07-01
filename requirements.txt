@@ -2,3 +2,4 @@ streamlit
 Pillow
 openai
 requests
+opencv-python-headless
