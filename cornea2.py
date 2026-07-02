@@ -5,6 +5,7 @@ import os
 import tempfile
 import requests
 import cv2
+import copy
 from openai import OpenAI
 
 # ========================
@@ -195,9 +196,13 @@ def analyze_video_nyckel(frames):
             "frame_results": results,
         }
 
-    best_result = max(valid_results, key=lambda x: x.get("confidence", 0))
-    best_result["frame_results"] = results
-    best_result["analyzed_frames"] = len(results)
+    # สำคัญ: ห้ามใส่ frame_results ลงใน object เดิมที่อยู่ใน results
+    # เพราะจะเกิด circular reference แล้ว st.json() จะล้มเหลว
+    best_result = copy.deepcopy(max(valid_results, key=lambda x: x.get("confidence", 0)))
+    safe_results = copy.deepcopy(results)
+
+    best_result["frame_results"] = safe_results
+    best_result["analyzed_frames"] = len(safe_results)
     return best_result
 
 
@@ -346,4 +351,5 @@ if uploaded_file:
         st.warning("⚠️ ใช้เพื่อคัดกรองเท่านั้น ไม่ใช่วินิจฉัย")
 else:
     st.info("กรุณาเลือกและอัปโหลดภาพนิ่งหรือวิดีโอก่อนเริ่มวิเคราะห์")
+
 
